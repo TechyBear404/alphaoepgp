@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import ImportParse from "@/components/importParse";
-import PlayersList from "@/components/playersList";
+import Epgp from "@/components/epgp";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Home() {
@@ -13,7 +13,7 @@ export default function Home() {
         <TabsTrigger value="importParse">Import</TabsTrigger>
       </TabsList>
       <TabsContent value="epgp">
-        <PlayersList />
+        <Epgp />
       </TabsContent>
       <TabsContent value="importParse">
         <ImportParse />

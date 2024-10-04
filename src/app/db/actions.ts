@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 interface EPGPLog {
@@ -14,6 +15,7 @@ interface EPGPLog {
   extras_p: number;
   realm: string;
 }
+
 export async function parseEPGPLog(logContent: string) {
   const log: EPGPLog = JSON.parse(logContent);
 
@@ -58,15 +60,6 @@ export async function parseEPGPLog(logContent: string) {
         create: { name, serverId: server.id, guildId: guild.id },
       });
 
-      // Create EPGP entry
-      // await prisma.epgp.create({
-      //   data: {
-      //     playerId: player.id,
-      //     ep,
-      //     gp,
-      //     updatedAt: new Date(log.timestamp * 1000),
-      //   },
-      // });
       await prisma.epgp.upsert({
         where: {
           playerId: player.id,
@@ -83,16 +76,6 @@ export async function parseEPGPLog(logContent: string) {
           updatedAt: new Date(log.timestamp * 1000),
         },
       });
-      // await prisma.epgp.upsert({
-      //   where: { playerId: player.id },
-      //   update: { ep, gp, updatedAt: new Date(log.timestamp * 1000) },
-      //   create: {
-      //     playerId: player.id,
-      //     ep,
-      //     gp,
-      //     updatedAt: new Date(log.timestamp * 1000),
-      //   },
-      // });
     }
 
     // Process loot
@@ -118,8 +101,14 @@ export async function parseEPGPLog(logContent: string) {
       });
 
       // Create ItemsOwners entry
-      await prisma.itemsOwners.create({
-        data: {
+      await prisma.itemsOwners.upsert({
+        where: {
+          itemId: item.id,
+          playerId: player.id,
+          assignedAt: new Date(timestamp * 1000),
+        },
+        update: {},
+        create: {
           itemId: item.id,
           playerId: player.id,
           assignedAt: new Date(timestamp * 1000),
@@ -135,3 +124,21 @@ export async function parseEPGPLog(logContent: string) {
     await prisma.$disconnect();
   }
 }
+
+export async function getEPGPGuild() {
+  const data = await prisma.guild.findFirst({
+    where: {
+      name: "Alpha Orionis",
+      server: { name: "Culte de la Rive noire" },
+    },
+    include: { server: true, players: { include: { epgp: true } } },
+  });
+
+  console.log(data);
+
+  return data;
+}
+
+export type GetEPGPGuild = Prisma.GuildGetPayload<{
+  include: { server: true; players: { include: { epgp: true } } };
+}>;
