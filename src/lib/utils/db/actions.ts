@@ -2,6 +2,15 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { parseWowItemString } from "@/lib/utils/parseWowItemString";
+import { BlizzAPI } from "blizzapi";
+import { promises } from "dns";
+
+const api = new BlizzAPI({
+  region: "eu",
+  clientId: process.env.WOW_CLIENT_ID,
+  clientSecret: process.env.WOW_CLIENT_SECRET,
+});
 
 interface EPGPLog {
   guild: string;
@@ -20,8 +29,8 @@ export async function parseEPGPLog(logContent: string) {
   const log: EPGPLog = JSON.parse(logContent);
 
   //get number of loot entries
-  const lootEntries = log.loot.length;
-  console.log("Number of loot entries: ", lootEntries);
+  // const lootEntries = log.loot.length;
+  // console.log("Number of loot entries: ", lootEntries);
 
   try {
     const server = await prisma.server.upsert({
@@ -93,19 +102,61 @@ export async function parseEPGPLog(logContent: string) {
 
       const itemId = parseInt(itemString.split(":")[1]); // Extract item ID from the item string
 
-      // Create or update the item
-      const item = await prisma.item.upsert({
+      interface WowItem {
+        name: string;
+        quality: { type: string };
+      }
+
+      interface WowIcon {
+        assets: { value: string }[];
+      }
+
+      let item = await prisma.item.findFirst({
         where: { itemId: itemId, itemString },
-        update: {},
-        create: { itemId: itemId, itemString },
       });
+
+      if (!item) {
+        const wowItem = (await api.query(
+          "/data/wow/item/" + itemId + "?namespace=static-eu&locale=en_GB"
+        )) as WowItem;
+
+        const wowIcon = (await api.query(
+          "/data/wow/media/item/" + itemId + "?namespace=static-eu&locale=en_GB"
+        )) as WowIcon;
+
+        item = await prisma.item.upsert({
+          where: { itemId: itemId, itemString },
+          update: {},
+          create: {
+            itemId: itemId,
+            name: wowItem.name,
+            itemString,
+            quality: wowItem.quality.type,
+            iconUrl: wowIcon.assets[0].value,
+          },
+        });
+      }
+      // const wowItem = (await api.query(
+      //   "/data/wow/item/" + itemId + "?namespace=static-us&locale=en_GB"
+      // )) as WowItem;
+      // console.log(wowItem);
+
+      // Create or update the item
+      // if (wowItem.name !== undefined) {
+      //   console.error(`Item not found: ${itemId}`);
+      //   continue;
+      // }
+      // const itemStringParsed = parseWowItemString(itemString);
+      // console.log(itemStringParsed);
 
       // Create ItemsOwners entry
       await prisma.itemsOwners.upsert({
         where: {
-          itemId: item.id,
-          playerId: player.id,
-          assignedAt: new Date(timestamp * 1000),
+          playerId_itemId_assignedAt: {
+            playerId: player.id,
+            itemId: item.id,
+            assignedAt: new Date(timestamp * 1000),
+          },
         },
         update: {},
         create: {
@@ -131,14 +182,33 @@ export async function getEPGPGuild() {
       name: "Alpha Orionis",
       server: { name: "Culte de la Rive noire" },
     },
-    include: { server: true, players: { include: { epgp: true } } },
+    include: {
+      server: true,
+      players: {
+        orderBy: [{ name: "asc" }],
+        include: { server: true, epgp: true },
+      },
+    },
   });
 
-  console.log(data);
+  // console.log(data);
 
   return data;
 }
 
 export type GetEPGPGuild = Prisma.GuildGetPayload<{
   include: { server: true; players: { include: { epgp: true } } };
+}>;
+
+export async function getPlayer(playerId: number) {
+  const data = await prisma.player.findFirst({
+    where: { id: playerId },
+    include: { epgp: true, loots: { include: { item: true } } },
+  });
+
+  return data;
+}
+
+export type GetPlayer = Prisma.PlayerGetPayload<{
+  include: { epgp: true; loots: { include: { item: true } } };
 }>;

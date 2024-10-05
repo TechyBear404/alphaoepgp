@@ -1,8 +1,10 @@
-"use client";
+// "use client";
 
-import { getEPGPGuild } from "@/app/db/actions";
+import { getEPGPGuild } from "@/lib/utils/db/actions";
 
-import type { GetEPGPGuild } from "@/app/db/actions";
+import type { GetEPGPGuild } from "@/lib/utils/db/actions";
+
+import { PlayerInfos } from "@/components/playerInfos";
 
 import {
   Card,
@@ -22,21 +24,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useEffect, useState } from "react";
+// import { useEffect, useState } from "react";
 
-export default function Epgp() {
-  const [epgpList, setEpgpList] = useState<GetEPGPGuild | null>(null);
+export default async function Epgp() {
+  // const [epgpList, setEpgpList] = useState<GetEPGPGuild | null>(null);
 
   // const epgp = getEPGPGuild();
   // console.log(epgpList);
-  useEffect(() => {
-    const updateEpgp = async () => {
-      const updatedEpgp = await getEPGPGuild();
-      setEpgpList(updatedEpgp);
-    };
+  const updatedEpgp = await getEPGPGuild();
+  // useEffect(() => {
+  //   const updateEpgp = async () => {
+  //     setEpgpList(updatedEpgp);
+  //   };
 
-    updateEpgp();
-  }, []);
+  //   updateEpgp();
+  // }, []);
 
   return (
     <Card>
@@ -49,24 +51,32 @@ export default function Epgp() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[100px]">Nom</TableHead>
-              <TableHead>EP</TableHead>
-              <TableHead>GP</TableHead>
-              <TableHead className="text-right">PR</TableHead>
+              <TableHead className="text-right">EP</TableHead>
+              <TableHead className="text-right">GP</TableHead>
+              <TableHead className="text-right">Ratio</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {epgpList &&
-              epgpList.players.map((player) => (
+            {updatedEpgp &&
+              updatedEpgp.players.map((player) => (
                 <TableRow key={player.id}>
-                  <TableCell className="font-medium">{player.name}</TableCell>
-                  <TableCell>{player.epgp?.ep}</TableCell>
-                  <TableCell>{player.epgp?.gp}</TableCell>
+                  <TableCell className="font-medium">
+                    <PlayerInfos playerId={player.id} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {player.epgp?.ep}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {player.epgp?.gp}
+                  </TableCell>
 
                   <TableCell className="text-right">
                     {player.epgp?.ep &&
                       player.epgp?.gp &&
-                      Math.round((player.epgp?.ep / player.epgp?.gp) * 100) /
-                        100}
+                      (
+                        Math.round((player.epgp?.ep / player.epgp?.gp) * 100) /
+                        100
+                      ).toFixed(2)}
                   </TableCell>
                 </TableRow>
               ))}

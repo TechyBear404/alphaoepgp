@@ -39,14 +39,17 @@ model Player {
 model Item {
   id         Int           @id @default(autoincrement())
   itemId     Int
+  name       String
+  quality    String
   itemString String        @unique
+  iconUrl    String
   drops      ItemsOwners[]
 }
 
 model ItemsOwners {
   item       Item     @relation(fields: [itemId], references: [id])
   itemId     Int
-  owner      Player   @relation(fields: [playerId], references: [id])
+  player     Player   @relation(fields: [playerId], references: [id])
   playerId   Int
   assignedAt DateTime
   gpCost     Int

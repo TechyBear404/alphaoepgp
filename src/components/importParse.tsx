@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { parseEPGPLog } from "@/app/db/actions";
+import { parseEPGPLog } from "@/lib/utils/db/actions";
 
 import {
   Card,
