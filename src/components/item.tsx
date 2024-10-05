@@ -47,7 +47,7 @@ export default function Item(props: {
           data-wowhead={item.dataWowhead}
         >
           {
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-start">
               <Image
                 src={props.item.iconUrl}
                 alt=""
@@ -55,7 +55,9 @@ export default function Item(props: {
                 height={50}
                 className="h-8 w-8"
               />
-              <span>{props.item.name || "Unknow item"}</span>
+              <div>
+                <div>{props.item.name || "Unknow item"}</div>
+              </div>
             </div>
           }
         </a>

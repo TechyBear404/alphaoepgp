@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "prisma-reset": "prisma migrate reset --force && prisma migrate deploy",
+    "prisma-clean": "prisma db push --force-reset"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",
@@ -16,6 +19,7 @@
     "@radix-ui/react-navigation-menu": "^1.2.1",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.1",
+    "@vercel/postgres": "^0.10.0",
     "blizzapi": "^2.6.5",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

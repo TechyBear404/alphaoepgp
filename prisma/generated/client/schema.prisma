@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Server {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique
+  region  String?
+  players Player[]
+  guilds  Guild[]
+}
+
+model Guild {
+  id       Int      @id @default(autoincrement())
+  name     String   @unique
+  server   Server   @relation(fields: [serverId], references: [id])
+  serverId Int
+  players  Player[]
+}
+
+model Player {
+  id       Int           @id @default(autoincrement())
+  name     String
+  server   Server        @relation(fields: [serverId], references: [id])
+  serverId Int
+  guild    Guild         @relation(fields: [guildId], references: [id])
+  guildId  Int
+  loots    ItemsOwners[]
+  epgp     Epgp?
+
+  @@unique([name, serverId, guildId])
+}
+
+model Item {
+  id         Int           @id @default(autoincrement())
+  itemId     Int
+  name       String
+  quality    String
+  itemString String        @unique
+  iconUrl    String
+  drops      ItemsOwners[]
+}
+
+model ItemsOwners {
+  item       Item     @relation(fields: [itemId], references: [id])
+  itemId     Int
+  player     Player   @relation(fields: [playerId], references: [id])
+  playerId   Int
+  assignedAt DateTime
+  gpCost     Int
+
+  @@id([playerId, itemId, assignedAt])
+}
+
+model Epgp {
+  id        Int      @id @default(autoincrement())
+  player    Player   @relation(fields: [playerId], references: [id])
+  playerId  Int      @unique
+  ep        Int
+  gp        Int
+  updatedAt DateTime
+}
