@@ -24,21 +24,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-// import { useEffect, useState } from "react";
 
 export default async function Epgp() {
-  // const [epgpList, setEpgpList] = useState<GetEPGPGuild | null>(null);
-
-  // const epgp = getEPGPGuild();
-  // console.log(epgpList);
-  const updatedEpgp = await getEPGPGuild();
-  // useEffect(() => {
-  //   const updateEpgp = async () => {
-  //     setEpgpList(updatedEpgp);
-  //   };
-
-  //   updateEpgp();
-  // }, []);
+  const updatedEpgp = (await getEPGPGuild()) as GetEPGPGuild;
 
   return (
     <Card>

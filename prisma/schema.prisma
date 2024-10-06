@@ -1,33 +1,65 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "./generated/client"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model Server {
-  id      Int      @id @default(autoincrement())
-  name    String   @unique
-  region  String?
+// datasource db {
+//   provider = "sqlite"
+//   url      = env("DATABASE_URL")
+// }
+
+// datasource db {
+//   provider  = "postgresql"
+//   url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
+//   directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+// }
+
+model Realm {
+  id      Int                @id @unique
+  name    NameLocalization[] @relation("RealmNameLocalization")
+  region  String
+  slug    String
   players Player[]
   guilds  Guild[]
+}
+
+model NameLocalization {
+  id         Int    @id @default(autoincrement())
+  entityId   Int
+  entityType String
+  locale     String
+  name       String
+
+  realm   Realm? @relation("RealmNameLocalization", fields: [realmId], references: [id])
+  realmId Int?
+  item    Item?  @relation("ItemNameLocalization", fields: [itemId], references: [id])
+  itemId  Int?
+
+  @@unique([entityId, entityType, locale])
 }
 
 model Guild {
   id       Int      @id @default(autoincrement())
   name     String   @unique
-  server   Server   @relation(fields: [serverId], references: [id])
+  realm    Realm    @relation(fields: [serverId], references: [id])
   serverId Int
   players  Player[]
+}
+
+enum Gender {
+  MALE
+  FEMALE
 }
 
 model Player {
   id       Int           @id @default(autoincrement())
   name     String
-  server   Server        @relation(fields: [serverId], references: [id])
+  gender   Gender
+  realm    Realm         @relation(fields: [serverId], references: [id])
   serverId Int
   guild    Guild         @relation(fields: [guildId], references: [id])
   guildId  Int
@@ -38,13 +70,28 @@ model Player {
 }
 
 model Item {
-  id         Int           @id @default(autoincrement())
+  id                   Int                    @id @unique
+  quality              String
+  iconUrl              String
+  drops                ItemsOwners[]
+  variants             ItemVariant[]
+  names                NameLocalization[]     @relation("ItemNameLocalization")
+  ItemNameLocalisation ItemNameLocalisation[]
+}
+
+model ItemNameLocalisation {
+  id     Int    @id @default(autoincrement())
+  locale String @unique
+  name   String
+  item   Item   @relation(fields: [itemId], references: [id])
+  itemId Int
+}
+
+model ItemVariant {
+  id         Int    @id @default(autoincrement())
+  parentItem Item   @relation(fields: [itemId], references: [id])
   itemId     Int
-  name       String
-  quality    String
-  itemString String        @unique
-  iconUrl    String
-  drops      ItemsOwners[]
+  itemString String @unique
 }
 
 model ItemsOwners {

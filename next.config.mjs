@@ -1,8 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    images: {
-        domains: ['render.worldofwarcraft.com'], //make it 'your-domain.com'
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "render.worldofwarcraft.com",
+        pathname: "**",
       },
+    ],
+  },
 };
 
 export default nextConfig;

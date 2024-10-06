@@ -7,7 +7,7 @@ import { WowheadInitializer } from "@/components/WowheadInitializer";
 
 import Nav from "@/components/nav";
 import Image from "next/image";
-import Script from "next/script";
+import { Toaster } from "@/components/ui/sonner";
 
 type RootLayoutProps = {
   children: React.ReactNode;
@@ -19,6 +19,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <head />
       <body className="min-h-screen flex flex-col">
         <WowheadInitializer />
+        <Toaster />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -30,7 +31,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
             alt=""
             width="1024"
             height="1024"
-            className="w-full h-full fixed bottom-0 left-0 z-[-1] object-cover brightness-50"
+            className="w-full h-full fixed bottom-0 left-0 z-[-1] object-cover brightness-75"
           />
           <header>
             <Nav />

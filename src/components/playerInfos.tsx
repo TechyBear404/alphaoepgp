@@ -22,7 +22,7 @@ import { getPlayer, GetPlayer } from "@/lib/utils/db/actions";
 import Item from "@/components/item";
 
 export async function PlayerInfos(props: { playerId: number }) {
-  const player = await getPlayer(props.playerId);
+  const player = (await getPlayer(props.playerId)) as GetPlayer;
 
   return (
     <Dialog>

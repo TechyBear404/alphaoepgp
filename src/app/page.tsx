@@ -4,7 +4,6 @@ import Image from "next/image";
 import ImportParse from "@/components/importParse";
 import Epgp from "@/components/epgp";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Item from "@/components/item";
 
 export default function Home() {
   return (
@@ -21,7 +20,6 @@ export default function Home() {
           <ImportParse />
         </TabsContent>
       </Tabs>
-      {/* <Item item="" /> */}
     </main>
   );
 }

@@ -1,16 +1,24 @@
 "use server";
 
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 import { parseWowItemString } from "@/lib/utils/parseWowItemString";
-import { BlizzAPI } from "blizzapi";
+// import { BlizzAPI } from "blizzapi";
 import { promises } from "dns";
+import {
+  getWowItem,
+  getWowIcon,
+  getWowRealm,
+  WowIcon,
+  WowItem,
+  WowRealm,
+} from "@/lib/utils/wowApi";
 
-const api = new BlizzAPI({
-  region: "eu",
-  clientId: process.env.WOW_CLIENT_ID,
-  clientSecret: process.env.WOW_CLIENT_SECRET,
-});
+// const api = new BlizzAPI({
+//   region: "eu",
+//   clientId: process.env.WOW_CLIENT_ID,
+//   clientSecret: process.env.WOW_CLIENT_SECRET,
+// });
 
 interface EPGPLog {
   guild: string;
@@ -25,154 +33,159 @@ interface EPGPLog {
   realm: string;
 }
 
+export async function addRealm(serverName: string, region: string) {
+  let response = await getWowRealm(serverName, region);
+
+    const wowRealm = response.data as WowRealm;
+
+    const realm = await prisma.realm.upsert({
+      where: { id: wowRealm.id },
+      update: {},
+      create: { id: wowRealm.id, region, slug: wowRealm.slug },
+    });
+
+    for (const name in wowRealm.name) {
+      await prisma.realmNameLocalisation.upsert({
+        where: {
+          realmId: realm.id,
+          locale: Object.keys(name)[0],
+        },
+        update: {},
+        create: {
+          realmId: realm.id,
+          locale: Object.keys(name)[0],
+          name: Object.values(name)[0],
+        },
+      });
+    }
+    return realm;
+}
+
+async function addGuild(guildName: string, serverId: number) {
+  const guild = await prisma.guild.upsert({
+    where: { name: guildName, serverId },
+    update: {},
+    create: { name: guildName, serverId },
+  });
+
+  return guild;
+}
+
+async function addPlayer(playerName: string, serverId: number, guildId: number) {
+  const player = await prisma.player.upsert({
+    where: { name_serverId_guildId: { name: playerName, serverId, guildId } },
+    update: {},
+    create: { name: playerName, serverId, guildId },
+  });
+
+  return player;
+}
+
+async function addEPGP(playerId: number, ep: number, gp: number, timestamp: number) {
+  await prisma.epgp.upsert({
+    where: { playerId },
+    update: { ep, gp, updatedAt: new Date(timestamp * 1000) },
+    create: { playerId, ep, gp, updatedAt: new Date(timestamp * 1000) },
+  });
+}
+
 export async function parseEPGPLog(logContent: string) {
   const log: EPGPLog = JSON.parse(logContent);
-
-  //get number of loot entries
-  // const lootEntries = log.loot.length;
-  // console.log("Number of loot entries: ", lootEntries);
+  // let response = { success: false, message: "" };
 
   try {
-    const server = await prisma.server.upsert({
-      where: { name: log.realm, region: log.region },
-      update: {},
-      create: { name: log.realm, region: log.region },
-    });
+    const server = await addRealm(log.realm, log.region);
     // Create or update the guild
-    const guild = await prisma.guild.upsert({
-      where: { name: log.guild, serverId: server.id },
-      update: {},
-      create: { name: log.guild, serverId: server.id },
-    });
-
+    const guild = await addGuild(log.guild, server.id);
     // Process roster (players and EPGP)
     for (const [playerName, ep, gp] of log.roster) {
       const [name, serverName] = playerName.split("-");
 
-      const server = await prisma.server.upsert({
-        where: { name: serverName },
-        update: {},
-        create: { name: serverName },
-      });
       // Create or update the server
+      const server = await addRealm(serverName, log.region);
 
       // Create or update the player
-      const player = await prisma.player.upsert({
-        where: {
-          name_serverId_guildId: {
-            name,
-            serverId: server.id,
-            guildId: guild.id,
-          },
-        },
-        update: {},
-        create: { name, serverId: server.id, guildId: guild.id },
-      });
+      const player = await addPlayer(name, server.id, guild.id);
 
-      await prisma.epgp.upsert({
-        where: {
-          playerId: player.id,
-        },
-        update: {
-          ep,
-          gp,
-          updatedAt: new Date(log.timestamp * 1000),
-        },
-        create: {
-          playerId: player.id,
-          ep,
-          gp,
-          updatedAt: new Date(log.timestamp * 1000),
-        },
-      });
+      await addEPGP(player.id, ep, gp, log.timestamp);
     }
 
     // Process loot
     for (const [timestamp, playerName, itemString, gpCost] of log.loot) {
       const [name, serverName] = playerName.split("-");
 
-      const player = await prisma.player.findFirst({
-        where: { name, server: { name: serverName } },
-      });
-
-      if (!player) {
-        console.error(`Player not found: ${playerName}`);
-        continue;
-      }
 
       const itemId = parseInt(itemString.split(":")[1]); // Extract item ID from the item string
 
-      interface WowItem {
-        name: string;
-        quality: { type: string };
-      }
-
-      interface WowIcon {
-        assets: { value: string }[];
-      }
-
       let item = await prisma.item.findFirst({
-        where: { itemId: itemId, itemString },
+        where: { id: itemId },
+      });
+
+      let variant = await prisma.itemVariant.findFirst({
+        where: { itemId, itemString },
       });
 
       if (!item) {
-        const wowItem = (await api.query(
-          "/data/wow/item/" + itemId + "?namespace=static-eu&locale=en_GB"
-        )) as WowItem;
+        const wowItemResponse = await getWowItem(itemId);
+        const wowIconResponse = await getWowIcon(itemId);
 
-        const wowIcon = (await api.query(
-          "/data/wow/media/item/" + itemId + "?namespace=static-eu&locale=en_GB"
-        )) as WowIcon;
+        if (wowItemResponse.success || wowIconResponse.success) {
+          let wowItem = wowItemResponse.data as WowItem;
+          let wowIcon = wowIconResponse.data as WowIcon;
+          item = await prisma.item.upsert({
+            where: { id: itemId },
+            update: {},
+            create: {
+              id: itemId,
+              quality: wowItem.quality.type,
+              iconUrl: wowIcon.assets[0].value,
+            },
+          });
+        }
+      }
 
-        item = await prisma.item.upsert({
-          where: { itemId: itemId, itemString },
+      if (item && !variant) {
+        variant = await prisma.itemVariant.upsert({
+          where: { itemId: item?.id, itemString } ,
           update: {},
           create: {
-            itemId: itemId,
-            name: wowItem.name,
+            itemId: item.id,
             itemString,
-            quality: wowItem.quality.type,
-            iconUrl: wowIcon.assets[0].value,
           },
         });
       }
-      // const wowItem = (await api.query(
-      //   "/data/wow/item/" + itemId + "?namespace=static-us&locale=en_GB"
-      // )) as WowItem;
-      // console.log(wowItem);
 
-      // Create or update the item
-      // if (wowItem.name !== undefined) {
-      //   console.error(`Item not found: ${itemId}`);
-      //   continue;
-      // }
-      // const itemStringParsed = parseWowItemString(itemString);
-      // console.log(itemStringParsed);
-
-      // Create ItemsOwners entry
-      await prisma.itemsOwners.upsert({
-        where: {
-          playerId_itemId_assignedAt: {
-            playerId: player.id,
-            itemId: item.id,
-            assignedAt: new Date(timestamp * 1000),
-          },
-        },
-        update: {},
-        create: {
-          itemId: item.id,
-          playerId: player.id,
-          assignedAt: new Date(timestamp * 1000),
-          gpCost,
-        },
-      });
+          await prisma.itemsOwners.upsert({
+            where: {
+              playerId_itemId_assignedAt: {
+                playerId: player.id,
+                itemId: item.id,
+                assignedAt: new Date(timestamp * 1000),
+              },
+            },
+            update: {},
+            create: {
+              itemId: item.id,
+              playerId: player.id,
+              assignedAt: new Date(timestamp * 1000),
+              gpCost,
+            },
+          });
+        }
+      }
     }
 
     console.log("EPGP log parsed and inserted into the database successfully");
+    response = {
+      success: true,
+      message: "EPGP log parsed and inserted into the database successfully",
+    };
   } catch (error) {
     console.error("Error parsing EPGP log:", error);
+    response = { success: false, message: "Error parsing EPGP log" };
   } finally {
     await prisma.$disconnect();
+    return response;
   }
 }
 
