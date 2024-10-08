@@ -38,12 +38,16 @@ model NameLocalization {
   realmId Int?
   item    Item?  @relation("ItemNameLocalization", fields: [itemId], references: [id])
   itemId  Int?
+  race    Race?  @relation("RealmNameLocalization", fields: [raceId], references: [id])
+  raceId  Int?
+  class   Class? @relation("RealmNameLocalization", fields: [classId], references: [id])
+  classId Int?
 
   @@unique([entityId, entityType, locale])
 }
 
 model Guild {
-  id       Int      @id @default(autoincrement())
+  id       Int      @id @unique
   name     String   @unique
   realm    Realm    @relation(fields: [serverId], references: [id])
   serverId Int
@@ -55,10 +59,20 @@ enum Gender {
   FEMALE
 }
 
+enum Faction {
+  ALLIANCE
+  HORDE
+}
+
 model Player {
   id       Int           @id @default(autoincrement())
   name     String
   gender   Gender
+  faction  Faction
+  race     Race          @relation(fields: [raceId], references: [id])
+  raceId   Int
+  class    Class         @relation(fields: [classId], references: [id])
+  classId  Int
   realm    Realm         @relation(fields: [serverId], references: [id])
   serverId Int
   guild    Guild         @relation(fields: [guildId], references: [id])
@@ -67,6 +81,18 @@ model Player {
   epgp     Epgp?
 
   @@unique([name, serverId, guildId])
+}
+
+model Race {
+  id         Int                @id @unique
+  name       NameLocalization[] @relation("RealmNameLocalization")
+  characters Player[]
+}
+
+model Class {
+  id         Int                @id @unique
+  name       NameLocalization[] @relation("RealmNameLocalization")
+  characters Player[]
 }
 
 model Item {

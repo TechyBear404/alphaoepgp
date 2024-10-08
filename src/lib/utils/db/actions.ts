@@ -9,9 +9,11 @@ import {
   getWowItem,
   getWowIcon,
   getWowRealm,
+  getWowCharacterProfile,
   WowIcon,
   WowItem,
   WowRealm,
+  WowCharacterProfile,
 } from "@/lib/utils/wowApi";
 
 // const api = new BlizzAPI({
@@ -34,7 +36,7 @@ interface EPGPLog {
 }
 
 export async function addRealm(serverName: string, region: string) {
-  let response = await getWowRealm(serverName, region);
+    let response = await getWowRealm(serverName, region);
 
     const wowRealm = response.data as WowRealm;
 
@@ -71,7 +73,8 @@ async function addGuild(guildName: string, serverId: number) {
   return guild;
 }
 
-async function addPlayer(playerName: string, serverId: number, guildId: number) {
+async function addPlayer(name: string, serverId: number, slug: string, region: string ) {
+  const wowCharacter = await getWowCharacterProfile(name, slug, region);
   const player = await prisma.player.upsert({
     where: { name_serverId_guildId: { name: playerName, serverId, guildId } },
     update: {},
@@ -105,7 +108,7 @@ export async function parseEPGPLog(logContent: string) {
       const server = await addRealm(serverName, log.region);
 
       // Create or update the player
-      const player = await addPlayer(name, server.id, guild.id);
+      const player = await addPlayer(name, server.id, server.slug, server.region);
 
       await addEPGP(player.id, ep, gp, log.timestamp);
     }

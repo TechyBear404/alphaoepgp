@@ -18,7 +18,7 @@ export interface WowIcon {
 
 interface Response {
   success: boolean;
-  data: WowItem | WowIcon | WowRealm | undefined;
+  data: WowItem | WowIcon | WowRealm | WowCharacterProfile | undefined;
 }
 
 const api = new BlizzAPI({
@@ -102,6 +102,64 @@ export async function getWowRealm(name: string, region: string = "eu") {
     }
   } catch (error) {
     response = { success: false, data: undefined };
+  } finally {
+    return response;
+  }
+}
+
+export interface WowCharacterProfile {
+  id: number;
+  name: string;
+  gender: {
+    type: string;
+  };
+  faction: {
+    type: string;
+  };
+  race: {
+    id: number;
+    name: {
+      en_GB: string;
+      fr_FR: string;
+    };
+    character_class: {
+      id: number;
+      name: {
+        en_GB: string;
+        fr_FR: string;
+      };
+    };
+    guild: {
+      id: number;
+      name: string;
+      faction: {
+        type: string;
+      };
+      realm: {
+        id: number;
+        slug: string;
+        name: {
+          en_GB: string;
+          fr_FR: string;
+        };
+      };
+    };
+  };
+}
+
+export async function getWowCharacterProfile(
+  name: string,
+  slug: string,
+  region: string = "eu"
+) {
+  let response: Response = { success: false, data: undefined };
+  try {
+    const character = (await api.query(
+      `/profile/wow/character/${slug}/${name.toLowerCase()}?namespace=profile-${region.toLowerCase()}`
+    )) as WowCharacterProfile;
+    response = { success: true, data: character };
+  } catch (error) {
+    console.error(error);
   } finally {
     return response;
   }
